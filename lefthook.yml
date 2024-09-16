@@ -1,0 +1,16 @@
+pre-commit:
+  follow: true
+  parallel: false
+  commands:
+    test:
+      run: bun run test
+    lint:
+      run: bunx elm-review --fix
+      interactive: true
+      stage_fixed: true
+    format:
+      glob: "*.{md,ts,elm,json}"
+      run: prettier {staged_files} --write
+      stage_fixed: true
+    build:
+      run: bun run build

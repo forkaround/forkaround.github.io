@@ -1,7 +1,7 @@
-module Route exposing (..)
+module Route exposing (Route(..), fromUrl, href)
 
 import Url exposing (Url)
-import Url.Parser as Parser exposing ((</>), Parser, map, oneOf, s, top)
+import Url.Parser as Parser exposing (Parser, map, oneOf, s, top)
 
 
 type Route
@@ -21,10 +21,12 @@ fromUrl : Url -> Maybe Route
 fromUrl url =
     url |> Parser.parse parser
 
+
 href : Route -> String
 href route =
     case route of
         ChatRoute ->
             "/"
+
         SettingsRoute ->
             "/settings"

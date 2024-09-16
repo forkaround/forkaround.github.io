@@ -1,10 +1,12 @@
-port module Main exposing (main)
+module Main exposing (Model, Msg, Page, main)
 
 import Browser exposing (UrlRequest)
 import Browser.Navigation as Nav exposing (Key)
 import Html exposing (Attribute, Html, a, button, div, h1, h2, h3, input, li, nav, span, text, ul)
 import Html.Attributes exposing (autofocus, class, href, id, placeholder, value)
 import Html.Events exposing (keyCode, on, onClick, onInput)
+import InteropDefinitions exposing (FromElm(..), ToElm(..))
+import InteropPorts as Port
 import Json.Decode as Json
 import Markdown
 import Minidenticons exposing (identicon)
@@ -12,7 +14,7 @@ import Route exposing (Route(..))
 import Url exposing (Url)
 
 
-main : Program () Model Msg
+main : Program Json.Value Model Msg
 main =
     Browser.application
         { init = init
@@ -25,22 +27,23 @@ main =
 
 
 
--- PORTS
-
-
-port fromElm : String -> Cmd msg
-
-
-port toElm : (String -> msg) -> Sub msg
-
-
-
--- SUBSCRIPTIONS
+-- SUBS
 
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    toElm Received
+    Port.toElm
+        |> Sub.map
+            (\result ->
+                case result of
+                    Ok data ->
+                        case data of
+                            AuthenticatedUser user ->
+                                GotUser user.username
+
+                    Err _ ->
+                        GotUser "Salame"
+            )
 
 
 
@@ -53,6 +56,7 @@ type alias Model =
     , url : Url
     , prompt : String
     , generation : String
+    , history : List String
     }
 
 
@@ -71,7 +75,7 @@ type Msg
     | UrlRequested UrlRequest
     | PromptSubmitted
     | PromptChanged String
-    | Received String
+    | GotUser String
 
 
 
@@ -88,14 +92,29 @@ var a = 2 + 2;
 """
 
 
-init : () -> Url -> Key -> ( Model, Cmd Msg )
-init _ url key =
+init : Json.Value -> Url -> Key -> ( Model, Cmd Msg )
+init raw url key =
     let
-        page : Page
-        page =
-            pageFromRoute (Route.fromUrl url)
+        model : Model
+        model =
+            { key = key
+            , url = url
+            , page = pageFromRoute (Route.fromUrl url)
+            , prompt = ""
+            , generation = generation
+            , history = []
+            }
     in
-    ( { key = key, url = url, page = page, prompt = "", generation = generation }, Cmd.none )
+    case raw |> Port.decodeFlags of
+        Ok _ ->
+            ( model
+            , Cmd.none
+            )
+
+        Err _ ->
+            ( model
+            , Cmd.none
+            )
 
 
 
@@ -106,7 +125,7 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         PromptSubmitted ->
-            ( { model | prompt = "", generation = "" }, fromElm model.prompt )
+            ( { model | prompt = "", generation = "" }, Port.fromElm (Alert model.prompt) )
 
         UrlChanged url ->
             ( { model | url = url }, Cmd.none )
@@ -122,7 +141,7 @@ update msg model =
         PromptChanged prompt ->
             ( { model | prompt = prompt }, Cmd.none )
 
-        Received chunk ->
+        GotUser chunk ->
             ( { model | generation = model.generation ++ chunk }, Cmd.none )
 
 

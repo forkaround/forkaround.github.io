@@ -7,6 +7,7 @@ export default {
   content: ['index.html', 'src/**/*.{elm, css}'],
   plugins: [typography, daisyui],
   daisyui: {
+    logs: false,
     themes: [
       {
         light: {
