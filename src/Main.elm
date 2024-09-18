@@ -151,7 +151,7 @@ update msg model =
 
 view : Model -> Browser.Document Msg
 view model =
-    { title = "Ollamix"
+    { title = "ai.hike"
     , body =
         [ div [ id "app", class "flex flex-col lg:flex-row h-dvh" ]
             [ div [ class "min-w-48 p-3" ] (mainMenu model)
@@ -184,7 +184,13 @@ mainMenu : Model -> List (Html msg)
 mainMenu model =
     [ nav []
         [ ul [ class "flex lg:flex-col gap-2 items-end sm:items-start" ]
-            [ li [ class "font-bold grow text-xl hidden sm:block lg:mb-2" ] [ h1 [] [ a [ href (Route.href ChatRoute) ] [ text "Ollamix" ] ] ]
+            [ li [ class "grow text-xl hidden sm:block lg:mb-2" ]
+                [ h1 []
+                    [ a [ class "font-mono", href (Route.href ChatRoute) ]
+                        [ text "ai.hike"
+                        ]
+                    ]
+                ]
             , li [] [ a [ href (Route.href ChatRoute), active Chat model.page ] [ text "Chat" ] ]
             , li [] [ a [ href (Route.href ChatRoute), active NotFound model.page ] [ text "Assistants" ] ]
             , li [] [ a [ href (Route.href SettingsRoute), active NotFound model.page ] [ text "Tools" ] ]
@@ -197,13 +203,13 @@ mainMenu model =
 chatMenu : a -> List (Html msg)
 chatMenu _ =
     [ nav []
-        [ ul [ class "divide-y divide-base-300 flex md:flex-col md:whitespace-normal border-b overflow-scroll" ]
+        [ ul [ class "divide-y divide-neutral flex md:flex-col md:whitespace-normal md:border-b overflow-scroll" ]
             [ li [ class "p-4" ]
-                [ h2 [ class "text-ellipsis overflow-hidden max-w-64 text-nowrap" ] [ text "Bed stories cara de nalga y salame la concha del mono" ]
-                , h3 [ class "text-neutral-content text-ellipsis overflow-hidden max-w-64 text-nowrap" ] [ text "Tell me a bed story for kids when I'm home" ]
+                [ h2 [ class "text-ellipsis overflow-hidden max-w-64 text-nowrap font-semibold" ] [ text "New chat" ]
+                , h3 [ class "text-neutral-content text-ellipsis overflow-hidden max-w-64 text-nowrap" ] [ text "Try something funny" ]
                 ]
             , li [ class "p-4" ]
-                [ h2 [ class "text-ellipsis overflow-hidden max-w-64 text-nowrap" ] [ text "Once upon a time in Hollywod!" ]
+                [ h2 [ class "text-ellipsis overflow-hidden max-w-64 text-nowrap font-semibold" ] [ text "Once upon a time in Hollywod!" ]
                 , h3 [ class "text-neutral-content text-ellipsis overflow-hidden max-w-64 text-nowrap" ] [ text "The film directed by Quentin Tarantino won 3 oscars last night" ]
                 ]
             ]
@@ -213,9 +219,9 @@ chatMenu _ =
 
 chatContent : Model -> List (Html Msg)
 chatContent model =
-    [ div [ class "p-3" ]
-        [ h2 [] [ text "Bed time story" ]
-        , h3 [ class "text-neutral-content" ] [ text "Bed time stories for kids" ]
+    [ div [ class "p-4" ]
+        [ h2 [ class "font-semibold" ] [ text "New chat" ]
+        , h3 [ class "text-neutral-content" ] [ text "Try something funny" ]
         ]
     , div [ class "grow basis-0 overflow-scroll p-3 border-t" ]
         [ bubble model.generation
