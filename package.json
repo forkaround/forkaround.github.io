@@ -6,12 +6,13 @@
   "author": "Ricardo Casares",
   "type": "module",
   "scripts": {
-    "prebuild": "bun interop",
+    "prebuild": "bun clean && bun interop",
     "build": "vite build",
-    "predev": "bun interop -- --watch &",
+    "clean": "rm -rf src/Main.elm.d.ts dist elm-stuff",
+    "predev": "bun interop --watch &",
     "dev": "vite",
     "postinstall": "elm-tooling install && lefthook install",
-    "interop": "bunx elm-ts-interop --output src/Main.elm.d.ts",
+    "interop": "elm-ts-interop --output src/Main.elm.d.ts",
     "lint": "elm-review",
     "prepreview": "bun run build",
     "preview": "vite preview",
@@ -40,9 +41,6 @@
     "singleQuote": true
   },
   "dependencies": {
-    "debounce": "^2.1.1",
-    "highlight.js": "^11.10.0",
-    "lefthook": "^1.7.15",
     "ollama": "^0.5.9"
   },
   "devDependencies": {
@@ -51,9 +49,10 @@
     "@trivago/prettier-plugin-sort-imports": "^4.3.0",
     "autoprefixer": "^10.4.20",
     "daisyui": "^4.12.10",
-    "elm-debug-transformer": "^1.2.1",
     "elm-review": "^2.12.0",
     "elm-tooling": "^1.15.1",
+    "elm-ts-interop": "^0.0.8",
+    "lefthook": "^1.7.15",
     "postcss": "^8.4.47",
     "prettier-plugin-elm": "^0.11.0",
     "prettier-plugin-packagejson": "^2.5.2",

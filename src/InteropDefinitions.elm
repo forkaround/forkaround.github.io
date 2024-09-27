@@ -1,7 +1,7 @@
-module InteropDefinitions exposing (Flags, FromElm(..), ToElm(..), User, interop)
+module InteropDefinitions exposing (Flags, FromElm(..), ToElm(..), interop)
 
 import TsJson.Decode as TsDecode exposing (Decoder)
-import TsJson.Encode as TsEncode exposing (Encoder, required)
+import TsJson.Encode as TsEncode exposing (Encoder)
 
 
 interop :
@@ -17,15 +17,11 @@ interop =
 
 
 type FromElm
-    = Alert String
+    = MsgFromElm
 
 
 type ToElm
-    = AuthenticatedUser User
-
-
-type alias User =
-    { username : String }
+    = MsgToElm
 
 
 type alias Flags =
@@ -35,26 +31,19 @@ type alias Flags =
 fromElm : Encoder FromElm
 fromElm =
     TsEncode.union
-        (\vAlert value ->
+        (\msgFromElm value ->
             case value of
-                Alert string ->
-                    vAlert string
+                MsgFromElm ->
+                    msgFromElm value
         )
-        |> TsEncode.variantTagged "alert"
-            (TsEncode.object [ required "message" identity TsEncode.string ])
+        |> TsEncode.variantTagged "msgFromElm" TsEncode.null
         |> TsEncode.buildUnion
 
 
 toElm : Decoder ToElm
 toElm =
     TsDecode.discriminatedUnion "tag"
-        [ ( "authenticatedUser"
-          , TsDecode.map AuthenticatedUser
-                (TsDecode.map User
-                    (TsDecode.field "username" TsDecode.string)
-                )
-          )
-        ]
+        [ ( "msgToElm", TsDecode.succeed MsgToElm ) ]
 
 
 flags : Decoder Flags

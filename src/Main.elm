@@ -1,9 +1,10 @@
-module Main exposing (Model, Msg, Page, main)
+module Main exposing (Chat, ChatMessage, Model, Msg(..), Page(..), Role(..), Tool, main)
 
 import Browser exposing (UrlRequest)
 import Browser.Navigation as Nav exposing (Key)
-import Html exposing (Attribute, Html, a, button, div, h1, h2, h3, input, li, nav, span, text, ul)
-import Html.Attributes exposing (autofocus, class, href, id, placeholder, value)
+import Dict exposing (Dict)
+import Html exposing (Attribute, Html, a, button, div, h1, h2, h3, input, li, nav, span, text, time, ul)
+import Html.Attributes exposing (autofocus, class, href, id, placeholder)
 import Html.Events exposing (keyCode, on, onClick, onInput)
 import InteropDefinitions exposing (FromElm(..), ToElm(..))
 import InteropPorts as Port
@@ -38,11 +39,11 @@ subscriptions _ =
                 case result of
                     Ok data ->
                         case data of
-                            AuthenticatedUser user ->
-                                GotUser user.username
+                            MsgToElm ->
+                                GotUser
 
                     Err _ ->
-                        GotUser "Salame"
+                        GotUser
             )
 
 
@@ -55,15 +56,56 @@ type alias Model =
     , page : Page
     , url : Url
     , prompt : String
-    , generation : String
-    , history : List String
+    , chats : List Chat
+    , currentChat : Chat
     }
 
 
+type alias Chat =
+    { title : String
+    , description : String
+    , model : String
+    , messages : List ChatMessage
+    , tools : List Tool
+    }
+
+
+type alias Tool =
+    { kind : String
+    , function :
+        { name : String
+        , description : String
+        , parameters :
+            { kind : String
+            , required : List String
+            , properties :
+                Dict
+                    String
+                    { kind : String
+                    , description : String
+                    , enum : Maybe (List String)
+                    }
+            }
+        }
+    }
+
+
+type alias ChatMessage =
+    { role : Role
+    , content : String
+    , time : String
+    }
+
+
+type Role
+    = User
+    | Assistant
+
+
 type Page
-    = Chat
-    | Settings
-    | NotFound
+    = ChatPage
+    | SettingsPage
+    | NotFoundPage
 
 
 
@@ -75,21 +117,11 @@ type Msg
     | UrlRequested UrlRequest
     | PromptSubmitted
     | PromptChanged String
-    | GotUser String
+    | GotUser
 
 
 
 -- INIT
-
-
-generation : String
-generation =
-    """
-Ask me anything!
-```go
-var a = 2 + 2;
-```
-"""
 
 
 init : Json.Value -> Url -> Key -> ( Model, Cmd Msg )
@@ -101,8 +133,20 @@ init raw url key =
             , url = url
             , page = pageFromRoute (Route.fromUrl url)
             , prompt = ""
-            , generation = generation
-            , history = []
+            , chats =
+                [ Chat "What color is the moon and why can't mouse eat it?" "The currently active chat" "llama3.1" [] []
+                , Chat "How to make big money without sweating?" "Discover the secrets of money making" "llama3.1" [] []
+                ]
+            , currentChat =
+                { title = "Friendly hello"
+                , description = "New chat"
+                , model = "llama3.1"
+                , messages =
+                    [ ChatMessage User "Hello!" "12:29"
+                    , ChatMessage Assistant "Hi there! How can I help you today?" "12:30"
+                    ]
+                , tools = []
+                }
             }
     in
     case raw |> Port.decodeFlags of
@@ -124,9 +168,6 @@ init raw url key =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        PromptSubmitted ->
-            ( { model | prompt = "", generation = "" }, Port.fromElm (Alert model.prompt) )
-
         UrlChanged url ->
             ( { model | url = url }, Cmd.none )
 
@@ -141,8 +182,16 @@ update msg model =
         PromptChanged prompt ->
             ( { model | prompt = prompt }, Cmd.none )
 
-        GotUser chunk ->
-            ( { model | generation = model.generation ++ chunk }, Cmd.none )
+        PromptSubmitted ->
+            ( { model
+                | currentChat =
+                    Chat "Some" "New chat" "llama3.1" [] []
+              }
+            , Port.fromElm MsgFromElm
+            )
+
+        GotUser ->
+            ( model, Cmd.none )
 
 
 
@@ -157,13 +206,13 @@ view model =
             [ div [ class "min-w-48 p-3" ] (mainMenu model)
             , div [ class "grow flex flex-col md:flex-row border-t lg:border-l lg:border-t-0" ]
                 (case model.page of
-                    Chat ->
-                        twoColumnLayout (chatMenu model) (chatContent model)
+                    ChatPage ->
+                        twoColumnLayout (chatMenu model) (chatContent model.currentChat)
 
-                    Settings ->
+                    SettingsPage ->
                         twoColumnLayout (chatMenu model) (settingsView model)
 
-                    NotFound ->
+                    NotFoundPage ->
                         notFoundView model
                 )
             ]
@@ -191,46 +240,44 @@ mainMenu model =
                         ]
                     ]
                 ]
-            , li [] [ a [ href (Route.href ChatRoute), active Chat model.page ] [ text "Chat" ] ]
-            , li [] [ a [ href (Route.href ChatRoute), active NotFound model.page ] [ text "Assistants" ] ]
-            , li [] [ a [ href (Route.href SettingsRoute), active NotFound model.page ] [ text "Tools" ] ]
-            , li [] [ a [ href (Route.href SettingsRoute), active Settings model.page ] [ text "Settings" ] ]
+            , li [] [ a [ href (Route.href ChatRoute), active ChatPage model.page ] [ text "Chat" ] ]
+            , li [] [ a [ href (Route.href ChatRoute), active NotFoundPage model.page ] [ text "Assistants" ] ]
+            , li [] [ a [ href (Route.href SettingsRoute), active NotFoundPage model.page ] [ text "Tools" ] ]
+            , li [] [ a [ href (Route.href SettingsRoute), active SettingsPage model.page ] [ text "Settings" ] ]
             ]
         ]
     ]
 
 
-chatMenu : a -> List (Html msg)
-chatMenu _ =
+chatMenu : Model -> List (Html msg)
+chatMenu model =
     [ nav []
         [ ul [ class "divide-y divide-neutral flex md:flex-col md:whitespace-normal md:border-b overflow-scroll" ]
-            [ li [ class "p-4" ]
-                [ h2 [ class "text-ellipsis overflow-hidden max-w-64 text-nowrap font-semibold" ] [ text "New chat" ]
-                , h3 [ class "text-neutral-content text-ellipsis overflow-hidden max-w-64 text-nowrap" ] [ text "Try something funny" ]
-                ]
-            , li [ class "p-4" ]
-                [ h2 [ class "text-ellipsis overflow-hidden max-w-64 text-nowrap font-semibold" ] [ text "Once upon a time in Hollywod!" ]
-                , h3 [ class "text-neutral-content text-ellipsis overflow-hidden max-w-64 text-nowrap" ] [ text "The film directed by Quentin Tarantino won 3 oscars last night" ]
-                ]
-            ]
+            (List.map
+                (\chat ->
+                    li [ class "p-4" ]
+                        [ h2 [ class "text-ellipsis overflow-hidden max-w-64 text-nowrap font-semibold" ] [ text chat.title ]
+                        , h3 [ class "text-neutral-content text-ellipsis overflow-hidden max-w-64 text-nowrap" ] [ text chat.description ]
+                        ]
+                )
+                model.chats
+            )
         ]
     ]
 
 
-chatContent : Model -> List (Html Msg)
-chatContent model =
+chatContent : Chat -> List (Html Msg)
+chatContent chat =
     [ div [ class "p-4" ]
-        [ h2 [ class "font-semibold" ] [ text "New chat" ]
-        , h3 [ class "text-neutral-content" ] [ text "Try something funny" ]
+        [ h2 [ class "font-semibold" ] [ text chat.title ]
+        , h3 [ class "text-neutral-content" ] [ text chat.description ]
         ]
-    , div [ class "grow basis-0 overflow-scroll p-3 border-t" ]
-        [ bubble model.generation
-        ]
+    , div [ class "grow basis-0 overflow-scroll p-3 border-t" ] <|
+        List.map viewChatMessage chat.messages
     , div [ class "shrink-0 p-3 flex gap-3" ]
         [ input
             [ class "input w-full"
             , placeholder "What's on your mind?"
-            , value model.prompt
             , onInput PromptChanged
             , autofocus True
             , onEnter PromptSubmitted
@@ -268,10 +315,27 @@ active a b =
         class "text-neutral-content"
 
 
-bubble : String -> Html Msg
-bubble message =
+roleToString : Role -> String
+roleToString role =
+    case role of
+        User ->
+            "User"
+
+        Assistant ->
+            "Assistant"
+
+
+viewChatMessage : ChatMessage -> Html Msg
+viewChatMessage message =
     div
-        [ class "chat chat-start"
+        [ class "chat"
+        , class <|
+            case message.role of
+                User ->
+                    "chat-end"
+
+                Assistant ->
+                    "chat-start"
         ]
         [ div
             [ class "chat-image avatar hidden sm:inline"
@@ -279,13 +343,23 @@ bubble message =
             [ div
                 [ class "w-10 rounded-full"
                 ]
-                [ div [ class "rounded-xl bg-neutral p-1" ] [ identicon 50 50 "Assistant" ]
+                [ div [ class "rounded-xl bg-neutral p-1" ] [ identicon 50 50 (roleToString message.role) ]
                 ]
             ]
         , div
             [ class "chat-bubble chat-bubble-primary"
             ]
-            [ Markdown.toHtml [ class "prose py-3" ] message ]
+            [ Markdown.toHtml [ class "prose py-3" ] message.content ]
+        , div
+            [ class "chat-footer text-neutral-content flex gap-2 items-baseline"
+            ]
+            [ text
+                (roleToString message.role)
+            , time
+                [ class "opacity-50"
+                ]
+                [ text message.time ]
+            ]
         ]
 
 
@@ -311,23 +385,23 @@ modelFromUrl : Model -> Url -> Model
 modelFromUrl model url =
     case Route.fromUrl url of
         Just ChatRoute ->
-            { model | page = Chat }
+            { model | page = ChatPage }
 
         Just SettingsRoute ->
-            { model | page = Settings }
+            { model | page = SettingsPage }
 
         Nothing ->
-            { model | page = NotFound }
+            { model | page = NotFoundPage }
 
 
 pageFromRoute : Maybe Route -> Page
 pageFromRoute route =
     case route of
         Just ChatRoute ->
-            Chat
+            ChatPage
 
         Just SettingsRoute ->
-            Settings
+            SettingsPage
 
         Nothing ->
-            NotFound
+            NotFoundPage

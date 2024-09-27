@@ -9,7 +9,7 @@ pre-commit:
       interactive: true
       stage_fixed: true
     format:
-      glob: "*.{md,ts,elm,json}"
+      glob: '*.{md,ts,elm,json}'
       run: prettier {staged_files} --write
       stage_fixed: true
     build:
