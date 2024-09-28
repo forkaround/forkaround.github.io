@@ -266,17 +266,17 @@ chatMenu : Model -> List (Html msg)
 chatMenu model =
     [ nav []
         [ ul [ class "divide-y divide-neutral flex md:flex-col md:whitespace-normal md:border-b overflow-scroll" ]
-            (List.map
-                (\chat ->
-                    li [ class "p-4" ]
-                        [ h2 [ class "text-ellipsis overflow-hidden max-w-64 text-nowrap font-semibold" ] [ text chat.title ]
-                        , h3 [ class "text-neutral-content text-ellipsis overflow-hidden max-w-64 text-nowrap" ] [ text chat.description ]
-                        ]
-                )
-                model.chats
-            )
+            (List.map chatMenuItem model.chats)
         ]
     ]
+
+
+chatMenuItem : Chat -> Html msg
+chatMenuItem { title, description } =
+    li [ class "p-4" ]
+        [ h2 [ class "text-ellipsis overflow-hidden max-w-64 text-nowrap font-semibold" ] [ text title ]
+        , h3 [ class "text-neutral-content text-ellipsis overflow-hidden max-w-64 text-nowrap" ] [ text description ]
+        ]
 
 
 chatContent : Model -> List (Html Msg)
