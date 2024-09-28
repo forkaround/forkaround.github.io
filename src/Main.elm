@@ -4,7 +4,7 @@ import Browser exposing (UrlRequest)
 import Browser.Navigation as Nav exposing (Key)
 import Chat exposing (Chat, ChatMessage, Role(..), appendChatMessage)
 import Html exposing (Attribute, Html, a, button, div, h1, h2, h3, input, li, nav, span, text, time, ul)
-import Html.Attributes exposing (autofocus, class, href, id, placeholder)
+import Html.Attributes exposing (autofocus, class, disabled, href, id, placeholder, value)
 import Html.Events exposing (keyCode, on, onClick, onInput)
 import InteropDefinitions exposing (FromElm(..), ToElm(..))
 import InteropPorts as Port
@@ -109,19 +109,13 @@ init raw url key =
             , page = pageFromRoute (Route.fromUrl url)
             , prompt = ""
             , messageStream = ""
-            , chats =
-                [ Chat "What color is the moon and why can't mouse eat it?" "The currently active chat" "llama3.1" [] []
-                , Chat "How to make big money without sweating?" "Discover the secrets of money making" "llama3.1" [] []
-                ]
+            , chats = []
             , currentChat =
                 { title = "Friendly hello"
                 , description = "New chat"
                 , model = "llama3.1"
-                , messages =
-                    [ ChatMessage User "Hello!" "12:29"
-                    , ChatMessage Assistant "Hi there! How can I help you today?" "12:30"
-                    ]
                 , tools = []
+                , messages = []
                 }
             }
     in
@@ -162,12 +156,17 @@ update msg model =
             ( { model | prompt = prompt }, Cmd.none )
 
         PromptSubmitted ->
-            update
-                SendChatRequest
-                { model
-                    | prompt = ""
-                    , currentChat = appendChatMessage model.currentChat (ChatMessage User model.prompt "11:22")
-                }
+            case model.prompt of
+                "" ->
+                    ( model, Cmd.none )
+
+                _ ->
+                    update
+                        SendChatRequest
+                        { model
+                            | prompt = ""
+                            , currentChat = appendChatMessage model.currentChat (ChatMessage User model.prompt "11:22")
+                        }
 
         SendChatRequest ->
             ( model
@@ -275,11 +274,13 @@ chatContent model =
             , onInput PromptChanged
             , autofocus True
             , onEnter PromptSubmitted
+            , value model.prompt
             ]
             []
         , button
             [ class "btn btn-primary touch-manipulation"
             , onClick PromptSubmitted
+            , disabled (String.length model.prompt < 1)
             ]
             [ text "Send", span [ class "i-send" ] [] ]
         ]

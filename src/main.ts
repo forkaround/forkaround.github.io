@@ -29,7 +29,6 @@ subscribe(async msg =>
         )
         .then(async stream => {
           for await (const chunk of stream) {
-            console.log(chunk)
             send({tag: 'chatMessageChunk', data: chunk.message.content})
           }
           send({tag: 'chatMessageDone'})
