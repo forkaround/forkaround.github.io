@@ -45,13 +45,10 @@ subscriptions _ =
                             ChatMessageChunk chunk ->
                                 GotMessageChunk chunk
 
-                            DbReady ->
+                            DbInitReady ->
                                 NoOp
 
                             DbInitError ->
-                                NoOp
-
-                            MsgToElm ->
                                 NoOp
 
                     Err _ ->
@@ -122,7 +119,7 @@ init raw url key =
     case raw |> Port.decodeFlags of
         Ok _ ->
             ( model
-            , Port.fromElm InitDb
+            , Port.fromElm DbInit
             )
 
         Err _ ->
@@ -178,6 +175,36 @@ update msg model =
 
         GotMessageDone ->
             ( { model | messageStream = "", currentChat = appendChatMessage model.currentChat (ChatMessage Assistant model.messageStream "1122") }, Cmd.none )
+
+
+
+-- ROUTING HELPERS
+
+
+modelFromUrl : Model -> Url -> Model
+modelFromUrl model url =
+    case Route.fromUrl url of
+        Just ChatRoute ->
+            { model | page = ChatPage }
+
+        Just SettingsRoute ->
+            { model | page = SettingsPage }
+
+        Nothing ->
+            { model | page = NotFoundPage }
+
+
+pageFromRoute : Maybe Route -> Page
+pageFromRoute route =
+    case route of
+        Just ChatRoute ->
+            ChatPage
+
+        Just SettingsRoute ->
+            SettingsPage
+
+        Nothing ->
+            NotFoundPage
 
 
 
@@ -370,33 +397,3 @@ onEnter msg =
                 Json.fail "not ENTER"
     in
     on "keydown" (Json.andThen isEnter keyCode)
-
-
-
--- ROUTING HELPERS
-
-
-modelFromUrl : Model -> Url -> Model
-modelFromUrl model url =
-    case Route.fromUrl url of
-        Just ChatRoute ->
-            { model | page = ChatPage }
-
-        Just SettingsRoute ->
-            { model | page = SettingsPage }
-
-        Nothing ->
-            { model | page = NotFoundPage }
-
-
-pageFromRoute : Maybe Route -> Page
-pageFromRoute route =
-    case route of
-        Just ChatRoute ->
-            ChatPage
-
-        Just SettingsRoute ->
-            SettingsPage
-
-        Nothing ->
-            NotFoundPage

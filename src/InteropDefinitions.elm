@@ -6,9 +6,9 @@ import TsJson.Encode as TsEncode exposing (Encoder)
 
 
 interop :
-    { toElm : Decoder ToElm
+    { flags : Decoder Flags
+    , toElm : Decoder ToElm
     , fromElm : Encoder FromElm
-    , flags : Decoder Flags
     }
 interop =
     { toElm = toElm
@@ -18,13 +18,12 @@ interop =
 
 
 type FromElm
-    = InitDb
+    = DbInit
     | ChatRequest Chat
 
 
 type ToElm
-    = MsgToElm
-    | DbReady
+    = DbInitReady
     | DbInitError
     | ChatMessageDone
     | ChatMessageChunk String
@@ -37,27 +36,26 @@ type alias Flags =
 fromElm : Encoder FromElm
 fromElm =
     TsEncode.union
-        (\initDb chatRequest value ->
+        (\dbInit chatRequest value ->
             case value of
-                InitDb ->
-                    initDb value
+                DbInit ->
+                    dbInit value
 
                 ChatRequest chat ->
                     chatRequest chat
         )
-        |> TsEncode.variantTagged "initDb" TsEncode.null
-        |> TsEncode.variantTagged "chatRequest" chatEncoder
+        |> TsEncode.variantTagged "db/init" TsEncode.null
+        |> TsEncode.variantTagged "chat/request" chatEncoder
         |> TsEncode.buildUnion
 
 
 toElm : Decoder ToElm
 toElm =
     TsDecode.discriminatedUnion "tag"
-        [ ( "msgToElm", TsDecode.succeed MsgToElm )
-        , ( "dbReady", TsDecode.succeed DbReady )
-        , ( "dbInitError", TsDecode.succeed DbInitError )
-        , ( "chatMessageDone", TsDecode.succeed ChatMessageDone )
-        , ( "chatMessageChunk", TsDecode.succeed (\chunk -> ChatMessageChunk chunk) |> TsDecode.andMap (TsDecode.field "data" TsDecode.string) )
+        [ ( "db/init/ready", TsDecode.succeed DbInitReady )
+        , ( "db/init/error", TsDecode.succeed DbInitError )
+        , ( "chat/msg/done", TsDecode.succeed ChatMessageDone )
+        , ( "chat/msg/chunk", TsDecode.succeed (\chunk -> ChatMessageChunk chunk) |> TsDecode.andMap (TsDecode.field "data" TsDecode.string) )
         ]
 
 

@@ -1,8 +1,10 @@
 import {vector} from '@electric-sql/pglite/vector'
 import {PGliteWorker} from '@electric-sql/pglite/worker'
 
-export default new PGliteWorker(
-  new Worker(new URL('./db.worker.ts', import.meta.url), {
+import migrations from '@/lib/db/migrations.sql?raw'
+
+export const pg = new PGliteWorker(
+  new Worker(new URL('./worker.ts', import.meta.url), {
     type: 'module',
   }),
   {
@@ -11,3 +13,5 @@ export default new PGliteWorker(
     },
   },
 )
+
+await pg.exec(migrations)

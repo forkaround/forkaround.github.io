@@ -8,6 +8,9 @@
     "esModuleInterop": false,
     "moduleResolution": "Bundler",
     "allowSyntheticDefaultImports": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   }
 }

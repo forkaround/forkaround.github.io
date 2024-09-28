@@ -1,6 +1,6 @@
 import {match} from 'ts-pattern'
 
-import {Elm} from './Main.elm'
+import {Elm} from '@/Main.elm'
 
 export const {
   ports: {
@@ -11,13 +11,13 @@ export const {
 
 subscribe(async msg =>
   match(msg)
-    .with({tag: 'initDb'}, _ =>
-      import('./lib/db')
-        .then(() => send({tag: 'dbReady'}))
-        .catch(() => send({tag: 'dbInitError'})),
+    .with({tag: 'db/init'}, _ =>
+      import('@/lib/db/pg')
+        .then(() => send({tag: 'db/init/ready'}))
+        .catch(() => send({tag: 'db/init/error'})),
     )
 
-    .with({tag: 'chatRequest'}, chat =>
+    .with({tag: 'chat/request'}, chat =>
       import('ollama/browser')
         .then(({default: llm}) => llm)
         .then(llm =>
@@ -29,9 +29,9 @@ subscribe(async msg =>
         )
         .then(async stream => {
           for await (const chunk of stream) {
-            send({tag: 'chatMessageChunk', data: chunk.message.content})
+            send({tag: 'chat/msg/chunk', data: chunk.message.content})
           }
-          send({tag: 'chatMessageDone'})
+          send({tag: 'chat/msg/done'})
         }),
     )
 

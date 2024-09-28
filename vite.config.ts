@@ -1,9 +1,10 @@
-import pattycake from 'pattycake'
+import patty from 'pattycake'
 import {defineConfig} from 'vite'
-import elmPlugin from 'vite-plugin-elm'
+import elm from 'vite-plugin-elm'
+import tspaths from 'vite-tsconfig-paths'
 
 export default defineConfig({
-  plugins: [elmPlugin(), pattycake.vite({disableOptionalChaining: true})],
+  plugins: [elm(), tspaths(), patty.vite({disableOptionalChaining: true})],
   optimizeDeps: {
     exclude: ['@electric-sql/pglite'],
   },
