@@ -1,5 +1,6 @@
 module InteropDefinitions exposing (Flags, FromElm(..), ToElm(..), interop)
 
+import Chat exposing (Chat, chatEncoder)
 import TsJson.Decode as TsDecode exposing (Decoder)
 import TsJson.Encode as TsEncode exposing (Encoder)
 
@@ -17,11 +18,16 @@ interop =
 
 
 type FromElm
-    = MsgFromElm
+    = InitDb
+    | ChatRequest Chat
 
 
 type ToElm
     = MsgToElm
+    | DbReady
+    | DbInitError
+    | ChatMessageDone
+    | ChatMessageChunk String
 
 
 type alias Flags =
@@ -31,19 +37,28 @@ type alias Flags =
 fromElm : Encoder FromElm
 fromElm =
     TsEncode.union
-        (\msgFromElm value ->
+        (\initDb chatRequest value ->
             case value of
-                MsgFromElm ->
-                    msgFromElm value
+                InitDb ->
+                    initDb value
+
+                ChatRequest chat ->
+                    chatRequest chat
         )
-        |> TsEncode.variantTagged "msgFromElm" TsEncode.null
+        |> TsEncode.variantTagged "initDb" TsEncode.null
+        |> TsEncode.variantTagged "chatRequest" chatEncoder
         |> TsEncode.buildUnion
 
 
 toElm : Decoder ToElm
 toElm =
     TsDecode.discriminatedUnion "tag"
-        [ ( "msgToElm", TsDecode.succeed MsgToElm ) ]
+        [ ( "msgToElm", TsDecode.succeed MsgToElm )
+        , ( "dbReady", TsDecode.succeed DbReady )
+        , ( "dbInitError", TsDecode.succeed DbInitError )
+        , ( "chatMessageDone", TsDecode.succeed ChatMessageDone )
+        , ( "chatMessageChunk", TsDecode.succeed (\chunk -> ChatMessageChunk chunk) |> TsDecode.andMap (TsDecode.field "data" TsDecode.string) )
+        ]
 
 
 flags : Decoder Flags

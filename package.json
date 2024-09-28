@@ -41,7 +41,10 @@
     "singleQuote": true
   },
   "dependencies": {
-    "ollama": "^0.5.9"
+    "@electric-sql/pglite": "^0.2.9",
+    "ollama": "^0.5.9",
+    "pattycake": "^0.0.2",
+    "ts-pattern": "^5.4.0"
   },
   "devDependencies": {
     "@radix-ui/colors": "^3.0.0",

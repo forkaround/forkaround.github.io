@@ -1,8 +1,8 @@
-module Main exposing (Chat, ChatMessage, Model, Msg(..), Page(..), Role(..), Tool, main)
+module Main exposing (Model, Msg(..), Page(..), main)
 
 import Browser exposing (UrlRequest)
 import Browser.Navigation as Nav exposing (Key)
-import Dict exposing (Dict)
+import Chat exposing (Chat, ChatMessage, Role(..), appendChatMessage)
 import Html exposing (Attribute, Html, a, button, div, h1, h2, h3, input, li, nav, span, text, time, ul)
 import Html.Attributes exposing (autofocus, class, href, id, placeholder)
 import Html.Events exposing (keyCode, on, onClick, onInput)
@@ -39,11 +39,23 @@ subscriptions _ =
                 case result of
                     Ok data ->
                         case data of
+                            ChatMessageDone ->
+                                GotMessageDone
+
+                            ChatMessageChunk chunk ->
+                                GotMessageChunk chunk
+
+                            DbReady ->
+                                NoOp
+
+                            DbInitError ->
+                                NoOp
+
                             MsgToElm ->
-                                GotUser
+                                NoOp
 
                     Err _ ->
-                        GotUser
+                        NoOp
             )
 
 
@@ -58,48 +70,8 @@ type alias Model =
     , prompt : String
     , chats : List Chat
     , currentChat : Chat
+    , messageStream : String
     }
-
-
-type alias Chat =
-    { title : String
-    , description : String
-    , model : String
-    , messages : List ChatMessage
-    , tools : List Tool
-    }
-
-
-type alias Tool =
-    { kind : String
-    , function :
-        { name : String
-        , description : String
-        , parameters :
-            { kind : String
-            , required : List String
-            , properties :
-                Dict
-                    String
-                    { kind : String
-                    , description : String
-                    , enum : Maybe (List String)
-                    }
-            }
-        }
-    }
-
-
-type alias ChatMessage =
-    { role : Role
-    , content : String
-    , time : String
-    }
-
-
-type Role
-    = User
-    | Assistant
 
 
 type Page
@@ -113,11 +85,14 @@ type Page
 
 
 type Msg
-    = UrlChanged Url
+    = NoOp
+    | UrlChanged Url
     | UrlRequested UrlRequest
     | PromptSubmitted
     | PromptChanged String
-    | GotUser
+    | SendChatRequest
+    | GotMessageDone
+    | GotMessageChunk String
 
 
 
@@ -133,6 +108,7 @@ init raw url key =
             , url = url
             , page = pageFromRoute (Route.fromUrl url)
             , prompt = ""
+            , messageStream = ""
             , chats =
                 [ Chat "What color is the moon and why can't mouse eat it?" "The currently active chat" "llama3.1" [] []
                 , Chat "How to make big money without sweating?" "Discover the secrets of money making" "llama3.1" [] []
@@ -152,7 +128,7 @@ init raw url key =
     case raw |> Port.decodeFlags of
         Ok _ ->
             ( model
-            , Cmd.none
+            , Port.fromElm InitDb
             )
 
         Err _ ->
@@ -168,6 +144,9 @@ init raw url key =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
+        NoOp ->
+            ( model, Cmd.none )
+
         UrlChanged url ->
             ( { model | url = url }, Cmd.none )
 
@@ -183,15 +162,23 @@ update msg model =
             ( { model | prompt = prompt }, Cmd.none )
 
         PromptSubmitted ->
-            ( { model
-                | currentChat =
-                    Chat "Some" "New chat" "llama3.1" [] []
-              }
-            , Port.fromElm MsgFromElm
+            update
+                SendChatRequest
+                { model
+                    | prompt = ""
+                    , currentChat = appendChatMessage model.currentChat (ChatMessage User model.prompt "11:22")
+                }
+
+        SendChatRequest ->
+            ( model
+            , Port.fromElm (ChatRequest model.currentChat)
             )
 
-        GotUser ->
-            ( model, Cmd.none )
+        GotMessageChunk chunk ->
+            ( { model | messageStream = model.messageStream ++ chunk }, Cmd.none )
+
+        GotMessageDone ->
+            ( { model | messageStream = "", currentChat = appendChatMessage model.currentChat (ChatMessage Assistant model.messageStream "1122") }, Cmd.none )
 
 
 
@@ -207,7 +194,7 @@ view model =
             , div [ class "grow flex flex-col md:flex-row border-t lg:border-l lg:border-t-0" ]
                 (case model.page of
                     ChatPage ->
-                        twoColumnLayout (chatMenu model) (chatContent model.currentChat)
+                        twoColumnLayout (chatMenu model) (chatContent model)
 
                     SettingsPage ->
                         twoColumnLayout (chatMenu model) (settingsView model)
@@ -266,14 +253,21 @@ chatMenu model =
     ]
 
 
-chatContent : Chat -> List (Html Msg)
-chatContent chat =
+chatContent : Model -> List (Html Msg)
+chatContent model =
     [ div [ class "p-4" ]
-        [ h2 [ class "font-semibold" ] [ text chat.title ]
-        , h3 [ class "text-neutral-content" ] [ text chat.description ]
+        [ h2 [ class "font-semibold" ] [ text model.currentChat.title ]
+        , h3 [ class "text-neutral-content" ] [ text model.currentChat.description ]
         ]
     , div [ class "grow basis-0 overflow-scroll p-3 border-t" ] <|
-        List.map viewChatMessage chat.messages
+        List.append (List.map viewChatMessage model.currentChat.messages)
+            (case model.messageStream of
+                "" ->
+                    []
+
+                str ->
+                    [ viewChatMessage { role = Assistant, content = str, time = "23" } ]
+            )
     , div [ class "shrink-0 p-3 flex gap-3" ]
         [ input
             [ class "input w-full"
