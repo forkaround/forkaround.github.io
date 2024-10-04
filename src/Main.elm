@@ -1,4 +1,4 @@
-module Main exposing (Model, Msg(..), Page(..), main)
+module Main exposing (Model, Msg(..), main)
 
 import Browser exposing (UrlRequest)
 import Browser.Navigation as Nav exposing (Key)
@@ -62,19 +62,13 @@ subscriptions _ =
 
 type alias Model =
     { key : Key
-    , page : Page
+    , route : Route
     , url : Url
     , prompt : String
     , chats : List Chat
     , currentChat : Chat
     , messageStream : String
     }
-
-
-type Page
-    = ChatPage
-    | SettingsPage
-    | NotFoundPage
 
 
 
@@ -103,14 +97,14 @@ init raw url key =
         model =
             { key = key
             , url = url
-            , page = pageFromRoute (Route.fromUrl url)
+            , route = Route.fromUrl url
             , prompt = ""
             , messageStream = ""
             , chats = []
             , currentChat =
                 { title = "Friendly hello"
                 , description = "New chat"
-                , model = "llama3.1"
+                , model = "llama3.2"
                 , tools = []
                 , messages = []
                 }
@@ -144,7 +138,7 @@ update msg model =
         UrlRequested request ->
             case request of
                 Browser.Internal url ->
-                    ( modelFromUrl model url, Nav.pushUrl model.key (Url.toString url) )
+                    ( { model | route = Route.fromUrl url }, Nav.pushUrl model.key (Url.toString url) )
 
                 Browser.External url ->
                     ( model, Nav.load url )
@@ -178,36 +172,6 @@ update msg model =
 
 
 
--- ROUTING HELPERS
-
-
-modelFromUrl : Model -> Url -> Model
-modelFromUrl model url =
-    case Route.fromUrl url of
-        Just ChatRoute ->
-            { model | page = ChatPage }
-
-        Just SettingsRoute ->
-            { model | page = SettingsPage }
-
-        Nothing ->
-            { model | page = NotFoundPage }
-
-
-pageFromRoute : Maybe Route -> Page
-pageFromRoute route =
-    case route of
-        Just ChatRoute ->
-            ChatPage
-
-        Just SettingsRoute ->
-            SettingsPage
-
-        Nothing ->
-            NotFoundPage
-
-
-
 -- VIEW
 
 
@@ -218,14 +182,14 @@ view model =
         [ div [ id "app", class "flex flex-col lg:flex-row h-dvh" ]
             [ div [ class "min-w-48 p-3" ] (mainMenu model)
             , div [ class "grow flex flex-col md:flex-row border-t lg:border-l lg:border-t-0" ]
-                (case model.page of
-                    ChatPage ->
+                (case model.route of
+                    ChatRoute ->
                         twoColumnLayout (chatMenu model) (chatContent model)
 
-                    SettingsPage ->
+                    SettingsRoute ->
                         twoColumnLayout (chatMenu model) (settingsView model)
 
-                    NotFoundPage ->
+                    NotFoundRoute ->
                         notFoundView model
                 )
             ]
@@ -253,10 +217,8 @@ mainMenu model =
                         ]
                     ]
                 ]
-            , li [] [ a [ href (Route.href ChatRoute), active ChatPage model.page ] [ text "Chat" ] ]
-            , li [] [ a [ href (Route.href ChatRoute), active NotFoundPage model.page ] [ text "Assistants" ] ]
-            , li [] [ a [ href (Route.href SettingsRoute), active NotFoundPage model.page ] [ text "Tools" ] ]
-            , li [] [ a [ href (Route.href SettingsRoute), active SettingsPage model.page ] [ text "Settings" ] ]
+            , li [] [ a [ href (Route.href ChatRoute), active ChatRoute model.route ] [ text "Chat" ] ]
+            , li [] [ a [ href (Route.href SettingsRoute), active SettingsRoute model.route ] [ text "Settings" ] ]
             ]
         ]
     ]
@@ -328,7 +290,7 @@ notFoundView _ =
 -- UI
 
 
-active : Page -> Page -> Html.Attribute msg
+active : Route -> Route -> Html.Attribute msg
 active a b =
     if a == b then
         class "font-bold"

@@ -11,9 +11,9 @@ interop :
     , fromElm : Encoder FromElm
     }
 interop =
-    { toElm = toElm
+    { flags = flags
+    , toElm = toElm
     , fromElm = fromElm
-    , flags = flags
     }
 
 

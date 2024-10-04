@@ -7,6 +7,7 @@ import Url.Parser as Parser exposing (Parser, map, oneOf, s, top)
 type Route
     = ChatRoute
     | SettingsRoute
+    | NotFoundRoute
 
 
 parser : Parser (Route -> a) a
@@ -17,9 +18,11 @@ parser =
         ]
 
 
-fromUrl : Url -> Maybe Route
+fromUrl : Url -> Route
 fromUrl url =
-    url |> Parser.parse parser
+    url
+        |> Parser.parse parser
+        |> Maybe.withDefault NotFoundRoute
 
 
 href : Route -> String
@@ -30,3 +33,6 @@ href route =
 
         SettingsRoute ->
             "/settings"
+
+        NotFoundRoute ->
+            "/404"
