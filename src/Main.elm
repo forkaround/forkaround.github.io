@@ -373,9 +373,9 @@ viewChatMessageLoading =
             ]
         , div
             [ class "chat-bubble chat-bubble-primary flex gap-2 flex-col p-2" ]
-            [ p [ class "skeleton h-3 w-96" ] []
-            , p [ class "skeleton h-3 w-72" ] []
-            , p [ class "skeleton h-3 w-80" ] []
+            [ p [ class "skeleton h-3 w-48 sm:w-96" ] []
+            , p [ class "skeleton h-3 w-32 sm:w-72" ] []
+            , p [ class "skeleton h-3 w-36 sm:w-80" ] []
             ]
         , div
             [ class "chat-footer text-neutral-content flex gap-2 items-baseline"
