@@ -279,7 +279,7 @@ chatContent model =
             ]
             []
         , button
-            [ class "btn btn-primary touch-manipulation hidden sm:block"
+            [ class "btn btn-primary touch-manipulation hidden sm:flex"
             , type_ "submit"
             , onClick PromptSubmitted
             , disabled
