@@ -3,15 +3,16 @@ module Main exposing (Model, Msg(..), main)
 import Browser exposing (UrlRequest)
 import Browser.Navigation as Nav exposing (Key)
 import Chat exposing (Chat, ChatMessage, Role(..), appendChatMessage)
-import Html exposing (Attribute, Html, a, button, div, h1, h2, h3, input, li, nav, span, text, time, ul)
-import Html.Attributes exposing (autofocus, class, disabled, href, id, placeholder, value)
-import Html.Events exposing (keyCode, on, onClick, onInput)
-import InteropDefinitions exposing (FromElm(..), ToElm(..))
-import InteropPorts as Port
+import Html exposing (Html, a, button, div, form, h1, h2, h3, input, li, nav, p, span, text, time, ul)
+import Html.Attributes exposing (autofocus, class, disabled, href, id, placeholder, type_, value)
+import Html.Events exposing (onClick, onInput, onSubmit)
+import InteropDefinitions as IO
+import InteropPorts as IO
 import Json.Decode as Json
 import Markdown
 import Minidenticons exposing (identicon)
-import Route exposing (Route(..))
+import Route exposing (Route)
+import Stream exposing (Stream)
 import Url exposing (Url)
 
 
@@ -32,24 +33,29 @@ main =
 
 
 subscriptions : Model -> Sub Msg
-subscriptions _ =
-    Port.toElm
+subscriptions model =
+    IO.toElm
         |> Sub.map
             (\result ->
                 case result of
                     Ok data ->
                         case data of
-                            ChatMessageDone ->
-                                GotMessageDone
-
-                            ChatMessageChunk chunk ->
-                                GotMessageChunk chunk
-
-                            DbInitReady ->
+                            IO.DbInitReady ->
                                 NoOp
 
-                            DbInitError ->
+                            IO.DbInitError _ ->
                                 NoOp
+
+                            IO.Stream (Stream.Streaming chunk) ->
+                                case model.stream of
+                                    Stream.Streaming chunks ->
+                                        StreamUpdated (Stream.Streaming (chunks ++ chunk))
+
+                                    _ ->
+                                        StreamUpdated (Stream.Streaming chunk)
+
+                            IO.Stream stream ->
+                                StreamUpdated stream
 
                     Err _ ->
                         NoOp
@@ -62,12 +68,14 @@ subscriptions _ =
 
 type alias Model =
     { key : Key
-    , route : Route
     , url : Url
+    , route : Route
     , prompt : String
     , chats : List Chat
+    , errors : List String
+    , chunks : String
+    , stream : Stream
     , currentChat : Chat
-    , messageStream : String
     }
 
 
@@ -82,8 +90,7 @@ type Msg
     | PromptSubmitted
     | PromptChanged String
     | SendChatRequest
-    | GotMessageDone
-    | GotMessageChunk String
+    | StreamUpdated Stream
 
 
 
@@ -99,8 +106,10 @@ init raw url key =
             , url = url
             , route = Route.fromUrl url
             , prompt = ""
-            , messageStream = ""
+            , chunks = ""
+            , stream = Stream.Idle
             , chats = []
+            , errors = []
             , currentChat =
                 { title = "Friendly hello"
                 , description = "New chat"
@@ -110,10 +119,10 @@ init raw url key =
                 }
             }
     in
-    case raw |> Port.decodeFlags of
+    case raw |> IO.decodeFlags of
         Ok _ ->
             ( model
-            , Port.fromElm DbInit
+            , IO.fromElm IO.DbInit
             )
 
         Err _ ->
@@ -160,15 +169,20 @@ update msg model =
                         }
 
         SendChatRequest ->
-            ( model
-            , Port.fromElm (ChatRequest model.currentChat)
+            ( { model | stream = Stream.Loading }
+            , IO.fromElm (IO.ChatRequest model.currentChat)
             )
 
-        GotMessageChunk chunk ->
-            ( { model | messageStream = model.messageStream ++ chunk }, Cmd.none )
+        StreamUpdated Stream.Done ->
+            case model.stream of
+                Stream.Streaming message ->
+                    ( { model | stream = Stream.Done, currentChat = appendChatMessage model.currentChat (ChatMessage Assistant message "11:22") }, Cmd.none )
 
-        GotMessageDone ->
-            ( { model | messageStream = "", currentChat = appendChatMessage model.currentChat (ChatMessage Assistant model.messageStream "1122") }, Cmd.none )
+                _ ->
+                    ( model, Cmd.none )
+
+        StreamUpdated stream ->
+            ( { model | stream = stream }, Cmd.none )
 
 
 
@@ -183,13 +197,13 @@ view model =
             [ div [ class "min-w-48 p-3" ] (mainMenu model)
             , div [ class "grow flex flex-col md:flex-row border-t lg:border-l lg:border-t-0" ]
                 (case model.route of
-                    ChatRoute ->
+                    Route.ChatRoute ->
                         twoColumnLayout (chatMenu model) (chatContent model)
 
-                    SettingsRoute ->
+                    Route.SettingsRoute ->
                         twoColumnLayout (chatMenu model) (settingsView model)
 
-                    NotFoundRoute ->
+                    Route.NotFoundRoute ->
                         notFoundView model
                 )
             ]
@@ -212,13 +226,13 @@ mainMenu model =
         [ ul [ class "flex lg:flex-col gap-2 items-end sm:items-start" ]
             [ li [ class "grow text-xl hidden sm:block lg:mb-2" ]
                 [ h1 []
-                    [ a [ class "font-mono", href (Route.href ChatRoute) ]
-                        [ text "ai.hike"
+                    [ a [ class "font-mono", href (Route.href Route.ChatRoute) ]
+                        [ text "ollamix"
                         ]
                     ]
                 ]
-            , li [] [ a [ href (Route.href ChatRoute), active ChatRoute model.route ] [ text "Chat" ] ]
-            , li [] [ a [ href (Route.href SettingsRoute), active SettingsRoute model.route ] [ text "Settings" ] ]
+            , li [] [ a [ href (Route.href Route.ChatRoute), active Route.ChatRoute model.route ] [ text "Chat" ] ]
+            , li [] [ a [ href (Route.href Route.SettingsRoute), active Route.SettingsRoute model.route ] [ text "Settings" ] ]
             ]
         ]
     ]
@@ -249,27 +263,46 @@ chatContent model =
         ]
     , div [ class "grow basis-0 overflow-scroll p-3 border-t" ] <|
         List.append (List.map viewChatMessage model.currentChat.messages)
-            (case model.messageStream of
-                "" ->
+            (case model.stream of
+                Stream.Idle ->
                     []
 
-                str ->
-                    [ viewChatMessage { role = Assistant, content = str, time = "23" } ]
+                Stream.Done ->
+                    []
+
+                Stream.Errored _ ->
+                    []
+
+                Stream.Loading ->
+                    [ viewChatMessageLoading ]
+
+                Stream.Streaming message ->
+                    [ viewChatMessage { role = Assistant, content = message, time = "00000" } ]
             )
-    , div [ class "shrink-0 p-3 flex gap-3" ]
+    , form [ class "shrink-0 p-3 flex gap-3", onSubmit PromptSubmitted ]
         [ input
             [ class "input w-full"
             , placeholder "What's on your mind?"
             , onInput PromptChanged
             , autofocus True
-            , onEnter PromptSubmitted
             , value model.prompt
             ]
             []
         , button
             [ class "btn btn-primary touch-manipulation"
+            , type_ "submit"
             , onClick PromptSubmitted
-            , disabled (String.length model.prompt < 1)
+            , disabled
+                (case model.stream of
+                    Stream.Done ->
+                        False
+
+                    Stream.Idle ->
+                        False
+
+                    _ ->
+                        True
+                )
             ]
             [ text "Send", span [ class "i-send" ] [] ]
         ]
@@ -347,15 +380,33 @@ viewChatMessage message =
         ]
 
 
-onEnter : Msg -> Attribute Msg
-onEnter msg =
-    let
-        isEnter : number -> Json.Decoder Msg
-        isEnter code =
-            if code == 13 then
-                Json.succeed msg
-
-            else
-                Json.fail "not ENTER"
-    in
-    on "keydown" (Json.andThen isEnter keyCode)
+viewChatMessageLoading : Html Msg
+viewChatMessageLoading =
+    div
+        [ class "chat chat-start" ]
+        [ div
+            [ class "chat-image avatar hidden sm:inline"
+            ]
+            [ div
+                [ class "w-10 rounded-full"
+                ]
+                [ div [ class "rounded-xl bg-neutral p-1" ] [ identicon 50 50 (roleToString Assistant) ]
+                ]
+            ]
+        , div
+            [ class "chat-bubble chat-bubble-primary flex gap-2 flex-col p-2" ]
+            [ p [ class "skeleton h-3 w-96" ] []
+            , p [ class "skeleton h-3 w-72" ] []
+            , p [ class "skeleton h-3 w-80" ] []
+            ]
+        , div
+            [ class "chat-footer text-neutral-content flex gap-2 items-baseline"
+            ]
+            [ text
+                (roleToString Assistant)
+            , time
+                [ class "opacity-50"
+                ]
+                [ text "∞" ]
+            ]
+        ]

@@ -1,8 +1,10 @@
 module InteropDefinitions exposing (Flags, FromElm(..), ToElm(..), interop)
 
-import Chat exposing (Chat, chatEncoder)
+import Chat exposing (Chat, chatCodec)
+import Stream exposing (Stream, streamCodec)
+import TsJson.Codec as Codec exposing (Codec)
 import TsJson.Decode as TsDecode exposing (Decoder)
-import TsJson.Encode as TsEncode exposing (Encoder)
+import TsJson.Encode exposing (Encoder)
 
 
 interop :
@@ -24,9 +26,8 @@ type FromElm
 
 type ToElm
     = DbInitReady
-    | DbInitError
-    | ChatMessageDone
-    | ChatMessageChunk String
+    | DbInitError String
+    | Stream Stream
 
 
 type alias Flags =
@@ -35,28 +36,48 @@ type alias Flags =
 
 fromElm : Encoder FromElm
 fromElm =
-    TsEncode.union
-        (\dbInit chatRequest value ->
+    Codec.encoder fromElmCodec
+
+
+fromElmCodec : Codec FromElm
+fromElmCodec =
+    Codec.custom (Just "tag")
+        (\vDbInit vChatRequest value ->
             case value of
                 DbInit ->
-                    dbInit value
+                    vDbInit
 
                 ChatRequest chat ->
-                    chatRequest chat
+                    vChatRequest chat
         )
-        |> TsEncode.variantTagged "db/init" TsEncode.null
-        |> TsEncode.variantTagged "chat/request" chatEncoder
-        |> TsEncode.buildUnion
+        |> Codec.variant0 "@db.init" DbInit
+        |> Codec.namedVariant1 "@chat.request" ChatRequest ( "chat", chatCodec )
+        |> Codec.buildCustom
 
 
 toElm : Decoder ToElm
 toElm =
-    TsDecode.discriminatedUnion "tag"
-        [ ( "db/init/ready", TsDecode.succeed DbInitReady )
-        , ( "db/init/error", TsDecode.succeed DbInitError )
-        , ( "chat/msg/done", TsDecode.succeed ChatMessageDone )
-        , ( "chat/msg/chunk", TsDecode.succeed (\chunk -> ChatMessageChunk chunk) |> TsDecode.andMap (TsDecode.field "data" TsDecode.string) )
-        ]
+    Codec.decoder toElmCodec
+
+
+toElmCodec : Codec ToElm
+toElmCodec =
+    Codec.custom (Just "tag")
+        (\vDbInitReady vDbInitError vStreamUpdates value ->
+            case value of
+                DbInitReady ->
+                    vDbInitReady
+
+                DbInitError err ->
+                    vDbInitError err
+
+                Stream stream ->
+                    vStreamUpdates stream
+        )
+        |> Codec.variant0 "@db.ready" DbInitReady
+        |> Codec.namedVariant1 "@db.error" DbInitError ( "error", Codec.string )
+        |> Codec.namedVariant1 "@stream" Stream ( "data", streamCodec )
+        |> Codec.buildCustom
 
 
 flags : Decoder Flags

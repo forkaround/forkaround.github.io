@@ -11,28 +11,38 @@ export const {
 
 subscribe(async msg =>
   match(msg)
-    .with({tag: 'db/init'}, _ =>
+    .with({tag: '@db.init'}, _ =>
       import('@/lib/db/pg')
-        .then(() => send({tag: 'db/init/ready'}))
-        .catch(() => send({tag: 'db/init/error'})),
+        .then(() => send({tag: '@db.ready'}))
+        .catch(err => send({tag: '@db.error', error: String(err)})),
     )
 
-    .with({tag: 'chat/request'}, chat =>
+    .with({tag: '@chat.request'}, data =>
       import('ollama/browser')
         .then(({default: llm}) => llm)
+
         .then(llm =>
           llm.chat({
-            ...chat.data,
+            ...data.chat,
             stream: true,
             tools: [], // FIXME: typings for tools don't work
           }),
         )
+
         .then(async stream => {
           for await (const chunk of stream) {
-            send({tag: 'chat/msg/chunk', data: chunk.message.content})
+            send({
+              tag: '@stream',
+              data: {tag: 'streaming', text: chunk.message.content},
+            })
           }
-          send({tag: 'chat/msg/done'})
-        }),
+
+          send({tag: '@stream', data: {tag: 'done'}})
+        })
+
+        .catch(err =>
+          send({tag: '@stream', data: {tag: 'error', error: String(err)}}),
+        ),
     )
 
     .exhaustive(),

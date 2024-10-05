@@ -1,8 +1,7 @@
-module Chat exposing (Chat, ChatMessage, Function, Parameter, Property, Role(..), Tool, appendChatMessage, chatEncoder)
+module Chat exposing (Chat, ChatMessage, Function, Parameter, Property, Role(..), Tool, appendChatMessage, chatCodec)
 
 import Dict exposing (Dict)
 import TsJson.Codec as Codec exposing (Codec)
-import TsJson.Encode exposing (Encoder)
 
 
 type alias Chat =
@@ -12,11 +11,6 @@ type alias Chat =
     , messages : List ChatMessage
     , tools : List Tool
     }
-
-
-chatEncoder : Encoder Chat
-chatEncoder =
-    Codec.encoder chatCodec
 
 
 chatCodec : Codec Chat
