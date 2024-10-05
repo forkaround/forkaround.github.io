@@ -40,7 +40,6 @@
   "dependencies": {
     "@electric-sql/pglite": "^0.2.9",
     "ollama": "^0.5.9",
-    "pattycake": "^0.0.2",
     "ts-pattern": "^5.4.0"
   },
   "devDependencies": {
@@ -53,6 +52,7 @@
     "elm-tooling": "^1.15.1",
     "elm-ts-interop": "^0.0.8",
     "lefthook": "^1.7.15",
+    "pattycake": "^0.0.2",
     "postcss": "^8.4.47",
     "prettier-plugin-elm": "^0.11.0",
     "prettier-plugin-packagejson": "^2.5.2",
