@@ -4,7 +4,7 @@ import Browser exposing (UrlRequest)
 import Browser.Navigation as Nav exposing (Key)
 import Chat exposing (Chat, ChatMessage, Role(..), appendChatMessage, fromAssistant, fromUser, roleToString)
 import Html exposing (Html, a, button, div, form, h1, h2, h3, input, li, nav, p, span, text, ul)
-import Html.Attributes exposing (autofocus, class, disabled, href, id, placeholder, type_, value)
+import Html.Attributes exposing (attribute, autofocus, class, disabled, href, id, placeholder, type_, value)
 import Html.Events exposing (onClick, onInput, onSubmit)
 import InteropDefinitions as IO
 import InteropPorts as IO
@@ -276,6 +276,8 @@ chatContent model =
             , onInput PromptChanged
             , autofocus True
             , value model.prompt
+            , attribute "inputmode" "search"
+            , type_ "text"
             ]
             []
         , button
