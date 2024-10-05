@@ -1,4 +1,4 @@
-module Stream exposing (Stream(..), streamCodec)
+module Stream exposing (Stream(..), append, streamCodec)
 
 import TsJson.Codec as Codec exposing (Codec)
 
@@ -37,3 +37,18 @@ streamCodec =
         |> Codec.namedVariant1 "error" Errored ( "error", Codec.string )
         |> Codec.namedVariant1 "streaming" Streaming ( "text", Codec.string )
         |> Codec.buildCustom
+
+
+append : Stream -> Stream -> Stream
+append a b =
+    case a of
+        Streaming chunk ->
+            case b of
+                Streaming chunks ->
+                    Streaming (chunks ++ chunk)
+
+                _ ->
+                    a
+
+        _ ->
+            a

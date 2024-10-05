@@ -29,40 +29,6 @@ main =
 
 
 
--- SUBS
-
-
-subscriptions : Model -> Sub Msg
-subscriptions model =
-    IO.toElm
-        |> Sub.map
-            (\result ->
-                case result of
-                    Ok data ->
-                        case data of
-                            IO.DbInitReady ->
-                                NoOp
-
-                            IO.DbInitError _ ->
-                                NoOp
-
-                            IO.Stream (Stream.Streaming chunk) ->
-                                case model.stream of
-                                    Stream.Streaming chunks ->
-                                        StreamUpdated (Stream.Streaming (chunks ++ chunk))
-
-                                    _ ->
-                                        StreamUpdated (Stream.Streaming chunk)
-
-                            IO.Stream stream ->
-                                StreamUpdated stream
-
-                    Err _ ->
-                        NoOp
-            )
-
-
-
 -- MODEL
 
 
@@ -72,7 +38,6 @@ type alias Model =
     , route : Route
     , prompt : String
     , chats : List Chat
-    , errors : List String
     , chunks : String
     , stream : Stream
     , currentChat : Chat
@@ -109,7 +74,6 @@ init raw url key =
             , chunks = ""
             , stream = Stream.Idle
             , chats = []
-            , errors = []
             , currentChat =
                 { title = "Friendly hello"
                 , description = "New chat"
@@ -183,6 +147,32 @@ update msg model =
 
         StreamUpdated stream ->
             ( { model | stream = stream }, Cmd.none )
+
+
+
+-- SUBS
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    IO.toElm
+        |> Sub.map
+            (\result ->
+                case result of
+                    Ok data ->
+                        case data of
+                            IO.DbInitReady ->
+                                NoOp
+
+                            IO.DbInitError _ ->
+                                NoOp
+
+                            IO.Stream stream ->
+                                StreamUpdated (Stream.append stream model.stream)
+
+                    Err _ ->
+                        NoOp
+            )
 
 
 
