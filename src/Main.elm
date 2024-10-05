@@ -143,7 +143,7 @@ update msg model =
                     ( { model | stream = Stream.Done, currentChat = appendChatMessage model.currentChat (fromAssistant message) }, Cmd.none )
 
                 _ ->
-                    ( model, Cmd.none )
+                    ( { model | stream = Stream.Done }, Cmd.none )
 
         StreamUpdated stream ->
             ( { model | stream = stream }, Cmd.none )
@@ -260,8 +260,8 @@ chatContent model =
                 Stream.Done ->
                     []
 
-                Stream.Errored _ ->
-                    []
+                Stream.Errored err ->
+                    [ viewChatMessageError err ]
 
                 Stream.Loading ->
                     [ viewChatMessageLoading ]
@@ -374,6 +374,32 @@ viewChatMessageLoading =
             [ p [ class "skeleton h-3 w-96" ] []
             , p [ class "skeleton h-3 w-72" ] []
             , p [ class "skeleton h-3 w-80" ] []
+            ]
+        , div
+            [ class "chat-footer text-neutral-content flex gap-2 items-baseline"
+            ]
+            [ text
+                (roleToString Assistant)
+            ]
+        ]
+
+
+viewChatMessageError : String -> Html msg
+viewChatMessageError message =
+    div
+        [ class "chat chat-start" ]
+        [ div
+            [ class "chat-image avatar hidden sm:inline"
+            ]
+            [ div
+                [ class "w-10 rounded-full"
+                ]
+                [ div [ class "rounded-xl bg-neutral p-1" ] [ identicon 50 50 (roleToString Assistant) ]
+                ]
+            ]
+        , div
+            [ class "chat-bubble chat-bubble-error flex gap-2 flex-col p-2 prose" ]
+            [ text message
             ]
         , div
             [ class "chat-footer text-neutral-content flex gap-2 items-baseline"

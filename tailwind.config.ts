@@ -20,6 +20,8 @@ export default {
           'base-100': rdx.grayP3.gray1,
           'base-200': rdx.grayP3.gray2,
           'base-300': rdx.grayP3.gray3,
+          'error': rdx.redP3.red3,
+          'error-content': rdx.redP3.red11,
         },
         dark: {
           'color-scheme': 'dark',
@@ -31,6 +33,8 @@ export default {
           'base-100': rdx.grayDarkP3.gray1,
           'base-200': rdx.grayDarkP3.gray2,
           'base-300': rdx.grayDarkP3.gray3,
+          'error': rdx.redDarkP3.red3,
+          'error-content': rdx.redDarkP3.red11,
         },
       },
     ],
