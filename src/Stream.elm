@@ -13,7 +13,7 @@ type Stream
 
 streamCodec : Codec Stream
 streamCodec =
-    Codec.custom (Just "tag")
+    Codec.custom (Just "stream")
         (\vDone vIdle vLoading vStreaming vError value ->
             case value of
                 Done ->

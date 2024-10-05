@@ -33,15 +33,15 @@ subscribe(async msg =>
           for await (const chunk of stream) {
             send({
               tag: '@stream',
-              data: {tag: 'streaming', text: chunk.message.content},
+              data: {stream: 'streaming', text: chunk.message.content},
             })
           }
 
-          send({tag: '@stream', data: {tag: 'done'}})
+          send({tag: '@stream', data: {stream: 'done'}})
         })
 
         .catch(err =>
-          send({tag: '@stream', data: {tag: 'error', error: String(err)}}),
+          send({tag: '@stream', data: {stream: 'error', error: String(err)}}),
         ),
     )
 
