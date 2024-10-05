@@ -2,8 +2,8 @@ module Main exposing (Model, Msg(..), main)
 
 import Browser exposing (UrlRequest)
 import Browser.Navigation as Nav exposing (Key)
-import Chat exposing (Chat, ChatMessage, Role(..), appendChatMessage)
-import Html exposing (Html, a, button, div, form, h1, h2, h3, input, li, nav, p, span, text, time, ul)
+import Chat exposing (Chat, ChatMessage, Role(..), appendChatMessage, fromAssistant, fromUser, roleToString)
+import Html exposing (Html, a, button, div, form, h1, h2, h3, input, li, nav, p, span, text, ul)
 import Html.Attributes exposing (autofocus, class, disabled, href, id, placeholder, type_, value)
 import Html.Events exposing (onClick, onInput, onSubmit)
 import InteropDefinitions as IO
@@ -129,7 +129,7 @@ update msg model =
                         SendChatRequest
                         { model
                             | prompt = ""
-                            , currentChat = appendChatMessage model.currentChat (ChatMessage User model.prompt "11:22")
+                            , currentChat = appendChatMessage model.currentChat (fromUser model.prompt)
                         }
 
         SendChatRequest ->
@@ -140,7 +140,7 @@ update msg model =
         StreamUpdated Stream.Done ->
             case model.stream of
                 Stream.Streaming message ->
-                    ( { model | stream = Stream.Done, currentChat = appendChatMessage model.currentChat (ChatMessage Assistant message "11:22") }, Cmd.none )
+                    ( { model | stream = Stream.Done, currentChat = appendChatMessage model.currentChat (fromAssistant message) }, Cmd.none )
 
                 _ ->
                     ( model, Cmd.none )
@@ -267,7 +267,7 @@ chatContent model =
                     [ viewChatMessageLoading ]
 
                 Stream.Streaming message ->
-                    [ viewChatMessage { role = Assistant, content = message, time = "00000" } ]
+                    [ viewChatMessage (fromAssistant message) ]
             )
     , form [ class "shrink-0 p-3 flex gap-3", onSubmit PromptSubmitted ]
         [ input
@@ -279,7 +279,7 @@ chatContent model =
             ]
             []
         , button
-            [ class "btn btn-primary touch-manipulation"
+            [ class "btn btn-primary touch-manipulation hidden sm:block"
             , type_ "submit"
             , onClick PromptSubmitted
             , disabled
@@ -322,16 +322,6 @@ active a b =
         class "text-neutral-content"
 
 
-roleToString : Role -> String
-roleToString role =
-    case role of
-        User ->
-            "User"
-
-        Assistant ->
-            "Assistant"
-
-
 viewChatMessage : ChatMessage -> Html Msg
 viewChatMessage message =
     div
@@ -362,10 +352,6 @@ viewChatMessage message =
             ]
             [ text
                 (roleToString message.role)
-            , time
-                [ class "opacity-50"
-                ]
-                [ text message.time ]
             ]
         ]
 
@@ -394,9 +380,5 @@ viewChatMessageLoading =
             ]
             [ text
                 (roleToString Assistant)
-            , time
-                [ class "opacity-50"
-                ]
-                [ text "∞" ]
             ]
         ]

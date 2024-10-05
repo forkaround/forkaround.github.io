@@ -1,4 +1,4 @@
-module Chat exposing (Chat, ChatMessage, Function, Parameter, Property, Role(..), Tool, appendChatMessage, chatCodec)
+module Chat exposing (Chat, ChatMessage, Function, Parameter, Property, Role(..), Tool, appendChatMessage, chatCodec, fromAssistant, fromUser, roleToString)
 
 import Dict exposing (Dict)
 import TsJson.Codec as Codec exposing (Codec)
@@ -40,16 +40,24 @@ appendChatMessage chat msg =
 type alias ChatMessage =
     { role : Role
     , content : String
-    , time : String
     }
+
+
+fromUser : String -> ChatMessage
+fromUser message =
+    ChatMessage User message
+
+
+fromAssistant : String -> ChatMessage
+fromAssistant message =
+    ChatMessage Assistant message
 
 
 chatMessageCodec : Codec ChatMessage
 chatMessageCodec =
-    Codec.object (\role content time -> { role = role, content = content, time = time })
+    Codec.object (\role content -> { role = role, content = content })
         |> Codec.field "role" .role roleCodec
         |> Codec.field "content" .content Codec.string
-        |> Codec.field "time" .time Codec.string
         |> Codec.buildObject
 
 
@@ -61,6 +69,16 @@ type Role
 roleCodec : Codec Role
 roleCodec =
     Codec.stringUnion [ ( "User", User ), ( "Assistant", Assistant ) ]
+
+
+roleToString : Role -> String
+roleToString role =
+    case role of
+        User ->
+            "User"
+
+        Assistant ->
+            "Assistant"
 
 
 type alias Tool =
