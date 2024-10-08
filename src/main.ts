@@ -7,7 +7,7 @@ export const {
     interopToElm: {send},
     interopFromElm: {subscribe},
   },
-} = Elm.Main.init({flags: null, node: document.getElementById('#app')})
+} = Elm.Main.init({flags: null})
 
 subscribe(async msg =>
   match(msg)
