@@ -217,7 +217,7 @@ mainMenu model =
             [ li [ class "grow text-xl hidden sm:block lg:mb-2" ]
                 [ h1 []
                     [ a [ class "font-mono", href (Route.href Route.ChatRoute) ]
-                        [ text "ollamix"
+                        [ text "forkaround"
                         ]
                     ]
                 ]
